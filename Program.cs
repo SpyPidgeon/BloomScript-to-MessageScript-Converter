@@ -24,6 +24,8 @@ internal class Program
         if (value != ErrorValues.None)
             Console.WriteLine($"Error: {value}");
 
+        MessageParser.instance.PrintMessages();
+
         Console.ReadLine();
     }
 }

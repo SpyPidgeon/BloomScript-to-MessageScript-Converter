@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using System.Text.Json.Nodes;
 using System.Threading.Tasks;
@@ -29,7 +30,7 @@ namespace BloomScriptConverter
         public static MessageParser instance = new MessageParser();
         List<string> messages = new List<string>();
         List<Message> parsedMessages = new();
-        List<(int character,int outfit,int startLine)> outfitIDs = new();
+        public List<(int character,int outfit,int startLine)> outfitIDs { get; set; } = new();
         public ErrorValues ParseLines(FileStream stream)
         {
             if (stream.Length <= 0)
@@ -59,13 +60,13 @@ namespace BloomScriptConverter
             return 0;
         }
 
-        ErrorValues ParseLine(string message)
+        ErrorValues ParseLine(string message,int startLine = -1)
         {
             int id = 0;
             Phase phase = 0;
             string bustup = "";
             string dialogue = "";
-            string points = "";
+            string? points = null;
 
             for (int i = 0; i < message.Length; i++)
             {
@@ -111,11 +112,14 @@ namespace BloomScriptConverter
                         continue;
 
                     case Phase.Points:
-                        if (message[i] == ' ' && points.Length <= 1)
+                        if (message[i] == ' ' && points == null)
                             continue;
 
-                        if (!char.IsLetter(message[i]) && points.Length <= 1)
+                        if (!char.IsLetter(message[i]) && points == null)
                             phase++;
+
+                        if (points == null)
+                            points = "";
 
                         points += message[i];
 
@@ -123,36 +127,43 @@ namespace BloomScriptConverter
                 }
             }
 
-            Console.WriteLine($"Bustup: {bustup}\nPoints: {points}\nDialogue: {dialogue}\nID: {id}");
+            //Console.WriteLine($"Bustup: {bustup}\nPoints: {points}\nDialogue: {dialogue}\nID: {id}");
+            Message finalMessage = Message.CreateMessage(id,bustup,dialogue,points,false,startLine);
+            parsedMessages.Add(finalMessage);
 
             return ErrorValues.None;
         }
         ErrorValues ParseOutfit(string message,int startLine)
         {
-            string directory = AppDomain.CurrentDomain.BaseDirectory;
-            string charactersjson = Path.Combine(directory, "config/characters.json");
-            if (!File.Exists(charactersjson))
+            message = message.ToLower();
+            if (!File.Exists(JsonDirectories.charactersDirectory))
                 return ErrorValues.MissingFile;
 
-            string charactersJson = File.ReadAllText(charactersjson);
-            JsonNode? node = JsonNode.Parse(charactersJson);
+            string charactersJson = File.ReadAllText(JsonDirectories.charactersDirectory);
+            JsonNode? nameNode = JsonNode.Parse(charactersJson);
 
-            if (node == null)
+            if (nameNode == null)
                 return ErrorValues.EmptyFile;
 
             int end = message.IndexOf(' ');
             string name = message.Substring(0, end);
-            int character = node[name]?.GetValue<int>() ?? 1;
+            name = name.ToLower();
+            int dot = name.IndexOf('.');
+            name = name.Remove(dot);
+            int character = nameNode[name]?.GetValue<int>() ?? 1;
 
-            end = message.IndexOf('=') + 1;
-            
-            while (message[end] == ' ' && end < message.Length)
-            {
-                end++;
-            }
+            string outfitsDirectory = JsonDirectories.outfitsDirectory + $"\\{name}.json";
 
-            string outfit = message.Substring(end);
-            int outfitID = node[outfit]?.GetValue<int>() ?? 1;
+            string outfitsJson = File.ReadAllText(outfitsDirectory);
+            JsonNode? outfitNode = JsonNode.Parse(outfitsJson);
+            if (outfitNode == null) return ErrorValues.MissingFile;
+
+            end = message.IndexOf('"') + 1;
+            int length = message.IndexOf('"', end) - end - 1;
+
+            string outfit = message.Substring(end,length);
+            outfit = outfit.ToLower();
+            int outfitID = outfitNode[outfit]?.GetValue<int>() ?? 1;
 
             outfitIDs.Add((character,outfitID,startLine));
 
@@ -164,14 +175,13 @@ namespace BloomScriptConverter
             for (int i = 0; i < messages.Count; i++)
             {
                 var message = messages[i];
-
-                if (message.IndexOf('=') != -1)
+                if (message.IndexOf(".outfit") != -1 || message.IndexOf(".Outfit") != -1)
                 {
                     ParseOutfit(message,i);
                     continue;
                 }
 
-                ErrorValues value = ParseLine(message);
+                ErrorValues value = ParseLine(message,i);
 
                 if (value != ErrorValues.None)
                 {
@@ -180,6 +190,31 @@ namespace BloomScriptConverter
             }
 
             return 0;
+        }
+
+        public void PrintMessages()
+        {
+            foreach(var message in parsedMessages)
+            {
+                Type type = message.GetType();
+                FieldInfo[] fields = type.GetFields(BindingFlags.Public | BindingFlags.Instance);
+
+                foreach (FieldInfo field in fields)
+                {
+                    if (field.Name == "bup" || field.Name == "points")
+                        continue;
+
+                    object value = field.GetValue(message);
+
+                    if (value != null)
+                        Console.WriteLine($"{field.Name} = {value}");
+                }
+
+                Console.WriteLine($"Bustup Id = {message.bup.bustupID}\nBustup Outfit = {message.bup.outfit}");
+
+                if (message.points != null)
+                    Console.WriteLine($"Confidant Id = {message.points.Value.confidantID}\nConfidant Points = {message.points.Value.confidantPoints}\n");
+            }
         }
     }
 }
