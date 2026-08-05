@@ -24,7 +24,13 @@ internal class Program
         if (value != ErrorValues.None)
             Console.WriteLine($"Error: {value}");
 
-        MessageParser.instance.PrintMessages();
+        //MessageParser.instance.PrintMessages();
+
+        string generatedfile = MessageScriptGenerator.Instance.CreateMessageString();
+
+        Console.WriteLine($"Parsed Count: {MessageParser.instance.parsedMessages.Count}");
+        Console.WriteLine(generatedfile);
+        File.WriteAllText("test.msg", generatedfile);
 
         Console.ReadLine();
     }

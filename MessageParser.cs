@@ -28,8 +28,8 @@ namespace BloomScriptConverter
     public sealed class MessageParser
     {
         public static MessageParser instance = new MessageParser();
-        List<string> messages = new List<string>();
-        List<Message> parsedMessages = new();
+        public List<string> messages { get; } = new List<string>();
+        public List<Message> parsedMessages { get; } = new();
         public List<(int character,int outfit,int startLine)> outfitIDs { get; set; } = new();
         public ErrorValues ParseLines(FileStream stream)
         {
@@ -44,10 +44,10 @@ namespace BloomScriptConverter
             {
                 int currentByte = stream.ReadByte();
 
-                if (currentByte == '\n' && messages[^1].Length <= 1)
+                if ((currentByte == '\n' || currentByte == '\r') && messages[^1].Length <= 1)
                     continue;
 
-                if (currentByte != '\n')
+                if (currentByte != '\n' && currentByte != '\r')
                 {
                     messages[^1] += (char)currentByte;
                 }
@@ -67,6 +67,20 @@ namespace BloomScriptConverter
             string bustup = "";
             string dialogue = "";
             string? points = null;
+            int startQuotation = message.IndexOf('"');
+
+            if (startQuotation <= -1)
+                return ErrorValues.NoDialogue;
+
+            if (startQuotation == 0)
+            {
+
+                Message newMessage = Message.CreateDialogueOnlyMessage(message);
+                parsedMessages.Add(newMessage);
+                return ErrorValues.None;
+            }
+
+            startQuotation--;
 
             for (int i = 0; i < message.Length; i++)
             {
@@ -87,27 +101,23 @@ namespace BloomScriptConverter
                         if (message[i] == ' ' && bustup.Length <= 1)
                             continue;
 
-                        bustup += message[i];
-
-                        if (message[i] == ' ')
-                        {
-                            i = message.IndexOf('"');
-
-                            if (i == -1)
-                                return ErrorValues.NoDialogue;
-
-                            phase++;
-                        }
-
-                        continue;
-                    case Phase.Dialogue:
-                        if (message[i] == '"')
+                        if (i == startQuotation)
                         {
                             phase++;
                             continue;
                         }
 
-                        dialogue += message[i];
+                        bustup += message[i];
+
+                        continue;
+                    case Phase.Dialogue:
+                        if (i > startQuotation + 1 && message[i] == '"')
+                        {
+                            phase++;
+                            continue;
+                        }
+
+                        if (message[i] != '"') dialogue += message[i];
 
                         continue;
 
@@ -127,9 +137,20 @@ namespace BloomScriptConverter
                 }
             }
 
-            //Console.WriteLine($"Bustup: {bustup}\nPoints: {points}\nDialogue: {dialogue}\nID: {id}");
+            List<string> separateDialogue = new();
+            Message.HandleLongLines(ref dialogue, ref separateDialogue);
+            if (separateDialogue.Count > 0) Console.WriteLine(separateDialogue[^1]);
+
             Message finalMessage = Message.CreateMessage(id,bustup,dialogue,points,false,startLine);
             parsedMessages.Add(finalMessage);
+
+            if (separateDialogue.Count > 0)
+            {
+                foreach(var line in separateDialogue)
+                {
+                    parsedMessages.Add(Message.CreateDialogueOnlyMessage(line));
+                }
+            }
 
             return ErrorValues.None;
         }
@@ -159,10 +180,11 @@ namespace BloomScriptConverter
             if (outfitNode == null) return ErrorValues.MissingFile;
 
             end = message.IndexOf('"') + 1;
-            int length = message.IndexOf('"', end) - end - 1;
+            int length = message.IndexOf('"', end) - end;
 
             string outfit = message.Substring(end,length);
             outfit = outfit.ToLower();
+            Console.WriteLine(outfit);
             int outfitID = outfitNode[outfit]?.GetValue<int>() ?? 1;
 
             outfitIDs.Add((character,outfitID,startLine));
@@ -172,6 +194,8 @@ namespace BloomScriptConverter
 
         public ErrorValues ParseMessages()
         {
+            Console.WriteLine($"Message count: {messages.Count}");
+
             for (int i = 0; i < messages.Count; i++)
             {
                 var message = messages[i];
@@ -181,6 +205,7 @@ namespace BloomScriptConverter
                     continue;
                 }
 
+                //Console.WriteLine($"Line to be parsed: {message}");
                 ErrorValues value = ParseLine(message,i);
 
                 if (value != ErrorValues.None)
@@ -210,10 +235,13 @@ namespace BloomScriptConverter
                         Console.WriteLine($"{field.Name} = {value}");
                 }
 
-                Console.WriteLine($"Bustup Id = {message.bup.bustupID}\nBustup Outfit = {message.bup.outfit}");
+                if (message.bup != null)
+                    Console.WriteLine($"Bustup Id = {message.bup.Value.bustupID}\nBustup Outfit = {message.bup.Value.outfit}");
 
                 if (message.points != null)
-                    Console.WriteLine($"Confidant Id = {message.points.Value.confidantID}\nConfidant Points = {message.points.Value.confidantPoints}\n");
+                    Console.WriteLine($"Confidant Id = {message.points.Value.confidantID}\nConfidant Points = {message.points.Value.confidantPoints}");
+
+                Console.WriteLine();
             }
         }
     }
