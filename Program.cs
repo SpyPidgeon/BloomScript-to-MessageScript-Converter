@@ -19,9 +19,9 @@ internal class Program
         FileStream file = File.Open(args[0], FileMode.Open);
 
         MessageParser.instance.ParseLines(file);
-        ErrorValues value = MessageParser.instance.ParseMessages();
+        (ErrorValues,int) value = MessageParser.instance.ParseMessages();
 
-        if (value != ErrorValues.None)
+        if (value.Item1 != ErrorValues.None)
             Console.WriteLine($"Error: {value}");
 
         //MessageParser.instance.PrintMessages();

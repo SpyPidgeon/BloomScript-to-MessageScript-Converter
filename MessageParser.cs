@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using System.Text;
+using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Threading.Tasks;
 
@@ -14,15 +15,9 @@ namespace BloomScriptConverter
         MissingFile,
         MissingID,
         EmptyFile,
-        NoDialogue
-    }
-
-    public enum Phase
-    {
-        Id,
-        Bustup,
-        Dialogue,
-        Points
+        NoDialogue,
+        MissingBracket,
+        FailedMessage
     }
 
     public sealed class MessageParser
@@ -60,99 +55,68 @@ namespace BloomScriptConverter
             return 0;
         }
 
-        ErrorValues ParseLine(string message,int startLine = -1)
+        (ErrorValues,int) ParseLine(string message,int startLine = -1)
         {
-            int id = 0;
-            Phase phase = 0;
-            string bustup = "";
-            string dialogue = "";
-            string? points = null;
-            int startQuotation = message.IndexOf('"');
-
-            if (startQuotation <= -1)
-                return ErrorValues.NoDialogue;
-
-            if (startQuotation == 0)
-            {
-
-                Message newMessage = Message.CreateDialogueOnlyMessage(message);
-                parsedMessages.Add(newMessage);
-                return ErrorValues.None;
-            }
-
-            startQuotation--;
+            List<string> values = new();
+            List<string> separateDialogue = new();
 
             for (int i = 0; i < message.Length; i++)
             {
-                switch (phase)
+                // Check bracket messages
+                char c = message[i];
+                if (c == '[')
                 {
-                    case Phase.Id:
-                        int end = message.IndexOf(' ');
-                        string number = message.Substring(0, end);
-                        if (int.TryParse(number, out int messageID))
-                            id = messageID;
-                        else
-                            return ErrorValues.MissingID;
+                    int next = message.IndexOf(']',i);
+                    if (next == -1) return (ErrorValues.MissingBracket,71);
+                    values.Add(message.Substring(i,next - i));
+                    i = next;
+                    continue;
+                }
 
-                        phase++;
-                        i = end;
-                        continue;
-                    case Phase.Bustup:
-                        if (message[i] == ' ' && bustup.Length <= 1)
-                            continue;
+                // Check for dialogue
+                if (c == '\"')
+                {
+                    int next = message.IndexOf('\"', i + 1);
+                    if (next == -1) return (ErrorValues.MissingBracket, 81);
+                    values.Add(message.Substring(i,next - i));
+                    i = next;
+                    continue;
+                }
 
-                        if (i == startQuotation)
-                        {
-                            phase++;
-                            continue;
-                        }
+                // Check for if name is the first value
+                if (i == 0 && char.IsLetter(c))
+                {
+                    int next = message.IndexOf(' ');
+                    if (next == -1) return (ErrorValues.MissingBracket,91);
+                    values.Add(message.Substring(i,next - i));
+                    i = next - 1;
+                    continue;
+                }
 
-                        bustup += message[i];
+                // General separator
+                if (c == ' ' && char.IsLetter(message[i + 1]))
+                {
+                    int next = message.IndexOf(' ', i + 1);
 
-                        continue;
-                    case Phase.Dialogue:
-                        if (i > startQuotation + 1 && message[i] == '"')
-                        {
-                            phase++;
-                            continue;
-                        }
+                    if (next == -1)
+                    {
+                        next = message.Length - 1;
+                    }
 
-                        if (message[i] != '"') dialogue += message[i];
-
-                        continue;
-
-                    case Phase.Points:
-                        if (message[i] == ' ' && points == null)
-                            continue;
-
-                        if (!char.IsLetter(message[i]) && points == null)
-                            phase++;
-
-                        if (points == null)
-                            points = "";
-
-                        points += message[i];
-
-                        break;
+                    values.Add(message.Substring(i,next - i));
+                    i = next - 1;
+                    continue;
                 }
             }
 
-            List<string> separateDialogue = new();
-            Message.HandleLongLines(ref dialogue, ref separateDialogue);
-            if (separateDialogue.Count > 0) Console.WriteLine(separateDialogue[^1]);
+            Message? finalMessage = Message.CreateMessage(values, startLine);
 
-            Message finalMessage = Message.CreateMessage(id,bustup,dialogue,points,false,startLine);
+            if (finalMessage == null)
+                return (ErrorValues.FailedMessage,116);
+
             parsedMessages.Add(finalMessage);
 
-            if (separateDialogue.Count > 0)
-            {
-                foreach(var line in separateDialogue)
-                {
-                    parsedMessages.Add(Message.CreateDialogueOnlyMessage(line));
-                }
-            }
-
-            return ErrorValues.None;
+            return (ErrorValues.None,0);
         }
         ErrorValues ParseOutfit(string message,int startLine)
         {
@@ -192,7 +156,7 @@ namespace BloomScriptConverter
             return ErrorValues.None;
         }
 
-        public ErrorValues ParseMessages()
+        public (ErrorValues,int) ParseMessages()
         {
             Console.WriteLine($"Message count: {messages.Count}");
 
@@ -206,15 +170,15 @@ namespace BloomScriptConverter
                 }
 
                 //Console.WriteLine($"Line to be parsed: {message}");
-                ErrorValues value = ParseLine(message,i);
+                (ErrorValues,int) value = ParseLine(message,i);
 
-                if (value != ErrorValues.None)
+                if (value.Item1 != ErrorValues.None)
                 {
                     return value;
                 }
             }
 
-            return 0;
+            return (0,0);
         }
 
         public void PrintMessages()
@@ -229,7 +193,7 @@ namespace BloomScriptConverter
                     if (field.Name == "bup" || field.Name == "points")
                         continue;
 
-                    object value = field.GetValue(message);
+                    object? value = field.GetValue(message);
 
                     if (value != null)
                         Console.WriteLine($"{field.Name} = {value}");

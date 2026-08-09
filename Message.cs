@@ -41,6 +41,7 @@ namespace BloomScriptConverter
     public class Message
     {
         public int? id;
+        public int subID = 0;
         public MessageType type;
         public Bustup? bup;
 //        public VoicePack? pack;
@@ -110,10 +111,12 @@ namespace BloomScriptConverter
             }
         }
 
-        public static Message CreateMessage(int id, string bustup, string message,string? points = null,bool phone = false,int startLine = -1)
+        public static Message? CreateMessage(List<string> values, int startLine = -1)
         {
-            if (!File.Exists(JsonDirectories.charactersDirectory) 
-                || !File.Exists(JsonDirectories.arcanaDirectory) 
+            Message? newMessage = null;
+
+            if (!File.Exists(JsonDirectories.charactersDirectory)
+                || !File.Exists(JsonDirectories.arcanaDirectory)
                 || !File.Exists(JsonDirectories.bustupDirectory))
                 return new Message();
 
@@ -125,99 +128,145 @@ namespace BloomScriptConverter
             JsonNode? bustupNode = JsonNode.Parse(bustupJson);
 
             if (characterNode == null || arcanaNode == null || bustupNode == null)
-                return new Message();
+                return null;
 
-            bustup = bustup.ToLower();
-            points = points?.ToLower() ?? null;
+            int? characterID = null;
+            int? majorID = null;
+            int subID = 0;
+            MessageType type = MessageType.MSG;
+            Bustup? bustup = null;
+            string? bustupString = null;
+            string? nameplate = null;
+            string dialogue = "";
+            ConfidantPoints? points = null;
+            bool phone = false;
 
-            // Bustup/MessageType
-            int dot = bustup.IndexOf('.');
-            string name = "";
-
-            Bustup? bustupValues = null;
-            MessageType messageType = MessageType.MSG;
-            if (dot > -1)
+            for (int i = 0; i < values.Count; i++)
             {
+                var value = values[i];
+                if (value[0] != '\"') value = value.ToLower();
+                value = value.Trim();
+                Console.WriteLine(value);
 
-                name = bustup.Substring(0, dot);
-                string bupName = bustup.Substring(dot + 1);
-
-                bool usesBustup = true;
-                for (int i = 0; i < messageNames.Length; i++)
+                if (value[0] == '"' && dialogue.Length <= 1)
                 {
-                    var msgtype = messageNames[i];
+                    dialogue = value.Replace("\"", "");
+                    continue;
+                }
 
-                    if (msgtype == name)
+                if (value == "phone")
+                {
+                    phone = true;
+                    continue;
+                }
+
+                if (value[0] == '[')
+                {
+                    bool isIDs = value.Any(char.IsDigit) && !value.Any(char.IsLetter);
+                    bool isPoints = value.Any(char.IsLetter) && value.Any(char.IsDigit);
+                    value = value.Replace("[", "");
+                    value = value.Replace("]", "");
+                    value = value.Trim();
+
+                    if (isIDs)
                     {
-                        usesBustup = false;
-                        messageType = (MessageType)i;
-                        break;
+                        int mIndex = Array.FindIndex(value.ToCharArray(), char.IsDigit);
+                        int nextIndex = value.IndexOf(' ', mIndex);
+
+                        if (nextIndex == -1) nextIndex = 1;
+
+                        majorID = int.Parse(value.Substring(mIndex, nextIndex - mIndex));
+
+                        if (value.Length == 1) continue;
+
+                        int sIndex = Array.FindIndex(value.ToCharArray(), nextIndex + 1, char.IsDigit);
+                        if (sIndex == -1)
+                            continue;
+
+                        nextIndex = value.Length;
+                        nextIndex--;
+                        Console.WriteLine(value.Substring(sIndex));
+                        subID = int.Parse(value.Substring(sIndex));
+                    }
+                    else if (isPoints)
+                    {
+                        int space = value.IndexOf(' ');
+                        string arcana = value.Substring(0,space);
+                        Console.WriteLine($"Arcana: {arcana}");
+
+                        int? confidantID = arcanaNode[arcana]?.GetValue<int>() ?? null;
+                        if (confidantID == null) return null;
+
+                        string pointString = value.Substring(space + 1);
+                        int confidantPoints = int.Parse(pointString);
+
+                        points = new ConfidantPoints()
+                        {
+                            confidantID = confidantID.Value,
+                            confidantPoints = confidantPoints
+                        };
+                    }
+                    else
+                    {
+                        bustupString = value;
+
+                        if (bustupNode[bustupString]?.GetValue<int>() == null)
+                        {
+                            nameplate = bustupString;
+                            characterID = characterNode[nameplate]?.GetValue<int>() ?? null;
+                            bustupString = null;
+                        }
+
+                        continue;
                     }
                 }
-
-                if (usesBustup)
-                {
-                    int character = characterNode[name]?.GetValue<int>() ?? 0;
-                    int bustupID = bustupNode[bupName]?.GetValue<int>() ?? 0;
-                    int outfit = 0;
-
-                    if (startLine != -1)
-                    {
-                        var outfitIDs = MessageParser.instance.outfitIDs;
-                        var outfitID = outfitIDs.Where(f => f.startLine < startLine && f.character == character).DefaultIfEmpty().Max();
-
-                        outfit = outfitID.outfit;
-                    }
-
-                    bustupValues = new Bustup()
-                    {
-                        character = character,
-                        bustupID = bustupID,
-                        outfit = outfit,
-                        phone = phone
-                    };
-                }
-                else
-                {
-                    name = bupName;
-                }
-            }
-            else
-            {
-                name = bustup;
             }
 
-            // Points
-            ConfidantPoints? confidantPoints = null;
-            if (points != null)
+            int outfit = 1;
+            var outfitIDs = MessageParser.instance.outfitIDs;
+
+            if (characterID == null && nameplate == null) { Console.WriteLine("Null characterID"); return null; }
+
+            if (outfitIDs.Any() && characterID != null)
             {
-                int space = points.IndexOf(' ');
+                var outfitID = outfitIDs.Where(x => x.startLine < startLine && x.character == characterID).Last();
+                outfit = outfitID.outfit;
+            }
 
-                string arcana = points.Substring(0, space);
-                int confidantID = arcanaNode[arcana]?.GetValue<int>() ?? 1;
+            if (bustupString != null)
+            {
+                bustupString = bustupString.Trim();
+                int? bustupID = bustupNode[bustupString]?.GetValue<int>() ?? null;
+                if (bustupID == null || characterID == null) return null;
 
-                string value = points.Substring(space + 1);
-                int confidantPointsValue = 1;
-                if (int.TryParse(value, out int pointValue))
-                    confidantPointsValue = pointValue;
-
-                confidantPoints = new ConfidantPoints()
+                bustup = new Bustup()
                 {
-                    confidantID = confidantID,
-                    confidantPoints = confidantPointsValue,
+                    bustupID = bustupID.Value,
+                    outfit = outfit,
+                    phone = phone,
+                    character = characterID.Value
                 };
             }
 
-            name = CultureInfo.CurrentCulture.TextInfo.ToTitleCase(name);
-
-            Message newMessage = new Message()
+            if (majorID == null)
             {
-                id = id,
-                bup = bustupValues,
-                type = messageType,
-                nameplate = name,
-                msg = message,
-                points = confidantPoints
+                if (MessageParser.instance.parsedMessages.Any())
+                    majorID = MessageParser.instance.parsedMessages[^1].id + 1;
+                else
+                    majorID = 0;
+            }
+
+            if (nameplate != null) nameplate = CultureInfo.CurrentCulture.TextInfo.ToTitleCase(nameplate);
+
+            newMessage = new Message()
+            {
+                id = majorID,
+                subID = subID,
+                type = type,
+                bup = bustup,
+                nameplate = nameplate,
+                msg = dialogue,
+                points = points
             };
 
             return newMessage;
