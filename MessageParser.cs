@@ -114,6 +114,11 @@ namespace BloomScriptConverter
             if (finalMessage == null)
                 return (ErrorValues.FailedMessage,116);
 
+            if (finalMessage.msg.Length > Message.maxCharacters)
+            {
+                Message.HandleLongLines(ref finalMessage.msg, ref separateDialogue);
+            }
+
             parsedMessages.Add(finalMessage);
 
             return (ErrorValues.None,0);
@@ -169,7 +174,6 @@ namespace BloomScriptConverter
                     continue;
                 }
 
-                //Console.WriteLine($"Line to be parsed: {message}");
                 (ErrorValues,int) value = ParseLine(message,i);
 
                 if (value.Item1 != ErrorValues.None)

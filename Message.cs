@@ -52,15 +52,6 @@ namespace BloomScriptConverter
         public static int maxCharacters = 30;
         public static int maxLines = 3;
 
-        public static string[] messageNames =
-        {
-            "message",
-            "trivia",
-            "mind",
-            "select",
-            "system",
-            "devil"
-        };
         public static Message CreateDialogueOnlyMessage(string message)
         {
             Message previousMessage = MessageParser.instance.parsedMessages[^1];
@@ -122,12 +113,11 @@ namespace BloomScriptConverter
 
             string charactersJson = File.ReadAllText(JsonDirectories.charactersDirectory);
             string arcanaJson = File.ReadAllText(JsonDirectories.arcanaDirectory);
-            string bustupJson = File.ReadAllText(JsonDirectories.bustupDirectory);
             JsonNode? characterNode = JsonNode.Parse(charactersJson);
             JsonNode? arcanaNode = JsonNode.Parse(arcanaJson);
-            JsonNode? bustupNode = JsonNode.Parse(bustupJson);
+            JsonNode? bustupNode = null;
 
-            if (characterNode == null || arcanaNode == null || bustupNode == null)
+            if (characterNode == null || arcanaNode == null)
                 return null;
 
             int? characterID = null;
@@ -141,12 +131,13 @@ namespace BloomScriptConverter
             ConfidantPoints? points = null;
             bool phone = false;
 
+            bool dialogueOnly = values.Count == 1 && values[0][0] == '\"';
+
             for (int i = 0; i < values.Count; i++)
             {
                 var value = values[i];
                 if (value[0] != '\"') value = value.ToLower();
                 value = value.Trim();
-                Console.WriteLine(value);
 
                 if (value[0] == '"' && dialogue.Length <= 1)
                 {
@@ -208,15 +199,36 @@ namespace BloomScriptConverter
                     }
                     else
                     {
-                        bustupString = value;
-
-                        if (bustupNode[bustupString]?.GetValue<int>() == null)
+                        if (characterNode[value] != null)
                         {
-                            nameplate = bustupString;
-                            characterID = characterNode[nameplate]?.GetValue<int>() ?? null;
-                            bustupString = null;
+                            characterID = characterNode[value]?.GetValue<int>();
+                            nameplate = value;
+                            continue;
                         }
 
+                        if (type == MessageType.MSG)
+                        {
+                            for (int j = 0; j < MessageScriptGenerator.msgTypes.Length; j++)
+                            {
+                                var key = MessageScriptGenerator.msgTypes[j].key;
+                                if (value == key)
+                                {
+                                    type = (MessageType)j;
+                                    break;
+                                }
+                            }
+
+                            if (type != MessageType.MSG)
+                                continue;
+                        }
+
+                        if (characterID != null)
+                        {
+                            bustupString = value;
+                            continue;
+                        }
+
+                        nameplate = value;
                         continue;
                     }
                 }
@@ -225,7 +237,18 @@ namespace BloomScriptConverter
             int outfit = 1;
             var outfitIDs = MessageParser.instance.outfitIDs;
 
-            if (characterID == null && nameplate == null) { Console.WriteLine("Null characterID"); return null; }
+            if (characterID != null)
+            {
+                string bustupJson = File.ReadAllText($"{JsonDirectories.bustupDirectory}\\{nameplate}.json");
+                bustupNode = JsonNode.Parse(bustupJson);
+            }
+
+            if (dialogueOnly)
+            {
+                var parsedMessages = MessageParser.instance.parsedMessages;
+                bustup = parsedMessages[^1]?.bup;
+                majorID = parsedMessages[^1]?.id;
+            }
 
             if (outfitIDs.Any() && characterID != null)
             {
@@ -233,11 +256,12 @@ namespace BloomScriptConverter
                 outfit = outfitID.outfit;
             }
 
-            if (bustupString != null)
+            if (bustupString != null && bustupNode != null)
             {
                 bustupString = bustupString.Trim();
+
                 int? bustupID = bustupNode[bustupString]?.GetValue<int>() ?? null;
-                if (bustupID == null || characterID == null) return null;
+                if (bustupID == null) return null;
 
                 bustup = new Bustup()
                 {
@@ -248,7 +272,7 @@ namespace BloomScriptConverter
                 };
             }
 
-            if (majorID == null)
+            if (majorID == null && !dialogueOnly)
             {
                 if (MessageParser.instance.parsedMessages.Any())
                     majorID = MessageParser.instance.parsedMessages[^1].id + 1;

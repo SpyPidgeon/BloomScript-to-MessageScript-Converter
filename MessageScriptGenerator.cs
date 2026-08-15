@@ -10,14 +10,14 @@ namespace BloomScriptConverter
     public sealed class MessageScriptGenerator
     {
         public static MessageScriptGenerator Instance = new MessageScriptGenerator();
-        string[] msgTypes =
+        public static (string key, string value)[] msgTypes =
         {
-            "msg MSG",
-            "msg TRV",
-            "msg MND",
-            "sel SEL",
-            "msg SYS",
-            "msg DVL"
+            ("message","msg MSG"),
+            ("trivia","msg TRV"),
+            ("mind","msg MND"),
+            ("selection","sel SEL"),
+            ("system","msg SYS"),
+            ("devil","msg DVL")
         };
         const int lipflapMinimum = 4;
 
@@ -26,27 +26,43 @@ namespace BloomScriptConverter
             string script = "";
             var messages = MessageParser.instance.parsedMessages;
             
-            foreach (var message in messages)
+            for (int i = 0; i < messages.Count; i++)
             {
-                script += GenerateMessage(message);
+                var message = messages[i];
+                Message? prevMessage = null;
+
+                bool isFirst = i == 0;
+
+                if (i - 1 > -1)
+                    prevMessage = messages[i - 1];
+
+                bool generateHeader = true;
+                if (prevMessage != null)
+                {
+                    if (message.id == prevMessage.id && message.subID == prevMessage.subID && !isFirst)
+                        generateHeader = false;
+                }
+
+                Console.WriteLine(generateHeader);
+                script += GenerateMessage(message,generateHeader,isFirst);
             }
 
             return script;
         }
 
-        public string GenerateMessage(in Message message)
+        public string GenerateMessage(in Message message,bool generateHeader,bool isFirstMessage)
         {
             string generatedMessage = "";
-            string messageType = msgTypes[(int)message.type];
+            string messageType = msgTypes[(int)message.type].value;
 
-            if (message.id != null)
-                generatedMessage = $"\n\n[{messageType}_{message.id:D3}_0_0 [{message.nameplate}]]\n" +
-                    $"[s]";
+            if (generateHeader && !isFirstMessage)
+                generatedMessage = $"\n\n[{messageType}_{message.id:D3}_{message.subID}_0 [{message.nameplate}]]" + $"\n[s]";
+            else if (isFirstMessage)
+                generatedMessage = $"[{messageType}_{message.id:D3}_{message.subID}_0 [{message.nameplate}]]" + $"\n[s]";
             else
                 generatedMessage = $"\n[s]";
 
-
-            bool isMessage = message.type == MessageType.MSG ? true : false;
+                bool isMessage = message.type == MessageType.MSG ? true : false;
 
             if (message.bup != null && isMessage)
             {
