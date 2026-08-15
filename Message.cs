@@ -107,8 +107,7 @@ namespace BloomScriptConverter
             Message? newMessage = null;
 
             if (!File.Exists(JsonDirectories.charactersDirectory)
-                || !File.Exists(JsonDirectories.arcanaDirectory)
-                || !File.Exists(JsonDirectories.bustupDirectory))
+                || !File.Exists(JsonDirectories.arcanaDirectory))
                 return new Message();
 
             string charactersJson = File.ReadAllText(JsonDirectories.charactersDirectory);
@@ -158,6 +157,7 @@ namespace BloomScriptConverter
                     value = value.Replace("[", "");
                     value = value.Replace("]", "");
                     value = value.Trim();
+                    Console.WriteLine($"Value: {value}, isID: {isIDs}, isPoints: {isPoints}");
 
                     if (isIDs)
                     {
@@ -199,9 +199,11 @@ namespace BloomScriptConverter
                     }
                     else
                     {
-                        if (characterNode[value] != null)
+                        int? idCheck = characterNode[value]?.GetValue<int>();
+                        if (idCheck != null)
                         {
-                            characterID = characterNode[value]?.GetValue<int>();
+                            Console.WriteLine(idCheck);
+                            characterID = idCheck;
                             nameplate = value;
                             continue;
                         }
@@ -239,8 +241,14 @@ namespace BloomScriptConverter
 
             if (characterID != null)
             {
-                string bustupJson = File.ReadAllText($"{JsonDirectories.bustupDirectory}\\{nameplate}.json");
-                bustupNode = JsonNode.Parse(bustupJson);
+                string path = $"{JsonDirectories.bustupDirectory}\\{nameplate}.json";
+
+                if (File.Exists(path))
+                {
+                    Console.WriteLine(path);
+                    string bustupJson = File.ReadAllText(path);
+                    bustupNode = JsonNode.Parse(bustupJson);
+                }
             }
 
             if (dialogueOnly)
@@ -260,7 +268,7 @@ namespace BloomScriptConverter
             {
                 bustupString = bustupString.Trim();
 
-                int? bustupID = bustupNode[bustupString]?.GetValue<int>() ?? null;
+                int? bustupID = bustupNode[bustupString]?.GetValue<int>();
                 if (bustupID == null) return null;
 
                 bustup = new Bustup()

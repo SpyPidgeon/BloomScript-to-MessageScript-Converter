@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("BloomScriptConverter")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+55ec299c823b54a16b67e0dd092b121fe9f287e7")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+c1448eeeda93925552a1956a603121e9b8e86cdb")]
 [assembly: System.Reflection.AssemblyProductAttribute("BloomScriptConverter")]
 [assembly: System.Reflection.AssemblyTitleAttribute("BloomScriptConverter")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
