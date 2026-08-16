@@ -31,7 +31,5 @@ internal class Program
         Console.WriteLine($"Parsed Count: {MessageParser.instance.parsedMessages.Count}");
         Console.WriteLine(generatedfile);
         File.WriteAllText("test.msg", generatedfile);
-
-        Console.ReadLine();
     }
 }
