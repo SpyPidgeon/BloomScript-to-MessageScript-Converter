@@ -38,18 +38,19 @@ namespace BloomScriptConverter
             for (int i = 0; i < stream.Length; i++)
             {
                 int currentByte = stream.ReadByte();
+                bool isNewLine = currentByte == '\r' || currentByte == '\n';
 
-                if ((currentByte == '\n' || currentByte == '\r') && messages[^1].Length <= 1)
+                if (isNewLine)
+                {
+                    if (stream.Length - stream.Position <= 2)
+                        break;
+
+                    if (messages[^1].Length > 2)
+                        messages.Add("");
                     continue;
+                }
 
-                if (currentByte != '\n' && currentByte != '\r')
-                {
-                    messages[^1] += (char)currentByte;
-                }
-                else
-                {
-                    messages.Add("");
-                }
+                messages[^1] += (char)currentByte;
             }
 
             return 0;
@@ -59,6 +60,9 @@ namespace BloomScriptConverter
         {
             List<string> values = new();
             List<string> separateDialogue = new();
+
+            byte[] bytes = Encoding.UTF8.GetBytes(message);
+            Console.WriteLine($"Parsing Line: {string.Join(",",bytes.Select(b => b.ToString("X2")))}");
 
             for (int i = 0; i < message.Length; i++)
             {

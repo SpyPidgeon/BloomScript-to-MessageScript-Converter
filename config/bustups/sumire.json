@@ -1,6 +1,7 @@
 {
     "neutral": 0,
     "smile": 1,
+    "smiling": 1,
     "angry": 2,
     "sad": 3,
     "surprised": 4,
