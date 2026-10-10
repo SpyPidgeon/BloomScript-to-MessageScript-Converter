@@ -77,11 +77,16 @@ namespace BloomScriptConverter
                 generatedMessage += $"[f 5 13 {points.Value.confidantID} {points.Value.confidantPoints * 5} 1]";
             }
 
-            generatedMessage += message.type == MessageType.SEL ? $"{message.msg}" : $"{message.msg}[n]";
-
             if (isMessage && message.msg.Length >= lipflapMinimum)
             {
-                generatedMessage += $"[f 4 10 65535 0 0]";
+                generatedMessage += $"[f 4 10 -1 0 0]";
+            }
+
+            generatedMessage += message.type == MessageType.SEL ? $"{message.msg}" : $"{message.msg}[n]";
+
+            if (message.type == MessageType.MSG)
+            {
+                generatedMessage += "[f 1 3 -1]";
             }
 
             generatedMessage += message.type == MessageType.SEL ? "[e]" : "[w][e]";
