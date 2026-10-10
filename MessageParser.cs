@@ -139,11 +139,9 @@ namespace BloomScriptConverter
             if (nameNode == null)
                 return ErrorValues.EmptyFile;
 
-            int end = message.IndexOf(' ');
+            int end = message.IndexOf('.');
             string name = message.Substring(0, end);
             name = name.ToLower();
-            int dot = name.IndexOf('.');
-            name = name.Remove(dot);
             int character = nameNode[name]?.GetValue<int>() ?? 1;
 
             string outfitsDirectory = JsonDirectories.outfitsDirectory + $"\\{name}.json";
@@ -158,7 +156,7 @@ namespace BloomScriptConverter
             string outfit = message.Substring(end,length);
             outfit = outfit.ToLower();
             Console.WriteLine(outfit);
-            int outfitID = outfitNode[outfit]?.GetValue<int>() ?? 1;
+            int outfitID = outfitNode[outfit]?.GetValue<int>() ?? 0;
 
             outfitIDs.Add((character,outfitID,startLine));
 

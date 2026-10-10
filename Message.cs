@@ -236,7 +236,7 @@ namespace BloomScriptConverter
                 }
             }
 
-            int outfit = 1;
+            int outfit = 0;
             var outfitIDs = MessageParser.instance.outfitIDs;
 
             if (characterID != null)

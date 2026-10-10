@@ -1,5 +1,14 @@
 {
     "neutral": 0,
+    "smile": 1,
     "smiling": 1,
-    "surprised": 2
+    "angry": 2,
+    "serious": 2,
+    "frowning": 2,
+    "sad": 3,
+    "surprised": 4,
+    "hurt": 5,
+    "blush_smile": 6,
+    "blush_angry": 7,
+    "crying": 8
 }
