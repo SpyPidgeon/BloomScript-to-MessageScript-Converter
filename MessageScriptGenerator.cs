@@ -82,6 +82,8 @@ namespace BloomScriptConverter
                 generatedMessage += $"[f 4 10 -1 0 0]";
             }
 
+            generatedMessage += "[vp 8 0 0 0 0 0]";
+
             generatedMessage += message.type == MessageType.SEL ? $"{message.msg}" : $"{message.msg}[n]";
 
             if (message.type == MessageType.MSG)

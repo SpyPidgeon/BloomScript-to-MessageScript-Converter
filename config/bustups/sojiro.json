@@ -1,4 +1,6 @@
 {
     "neutral": 0,
+    "smiling": 1,
+    "frowning": 2,
     "sad": 3
 }
