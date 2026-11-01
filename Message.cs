@@ -164,9 +164,13 @@ namespace BloomScriptConverter
                         int mIndex = Array.FindIndex(value.ToCharArray(), char.IsDigit);
                         int nextIndex = value.IndexOf(' ', mIndex);
 
-                        if (nextIndex == -1) nextIndex = 1;
-
-                        majorID = int.Parse(value.Substring(mIndex, nextIndex - mIndex));
+                        if (nextIndex == -1)
+                        {
+                            majorID = int.Parse(value);
+                            continue;
+                        }
+                        else
+                            majorID = int.Parse(value.Substring(mIndex, nextIndex - mIndex));
 
                         if (value.Length == 1) continue;
 
@@ -256,6 +260,7 @@ namespace BloomScriptConverter
                 var parsedMessages = MessageParser.instance.parsedMessages;
                 bustup = parsedMessages[^1]?.bup;
                 majorID = parsedMessages[^1]?.id;
+                subID = parsedMessages[^1]?.subID ?? 0;
             }
 
             if (outfitIDs.Any() && characterID != null)
@@ -264,7 +269,7 @@ namespace BloomScriptConverter
                 outfit = outfitID.outfit;
             }
 
-            if (bustupString != null && bustupNode != null)
+            if (bustupString != null && bustupNode != null && characterID != null)
             {
                 bustupString = bustupString.Trim();
 
@@ -283,7 +288,17 @@ namespace BloomScriptConverter
             if (majorID == null && !dialogueOnly)
             {
                 if (MessageParser.instance.parsedMessages.Any())
-                    majorID = MessageParser.instance.parsedMessages[^1].id + 1;
+                {
+                    var parsedMSG = MessageParser.instance.parsedMessages[^1];
+
+                    if (parsedMSG.subID == 0)
+                        majorID = parsedMSG.id + 1;
+                    else
+                    {
+                        majorID = parsedMSG.id;
+                        subID = parsedMSG.subID + 1;
+                    }    
+                }
                 else
                     majorID = 0;
             }
