@@ -64,6 +64,13 @@ namespace BloomScriptConverter
             byte[] bytes = Encoding.UTF8.GetBytes(message);
             Console.WriteLine($"Parsing Line: {string.Join(",",bytes.Select(b => b.ToString("X2")))}");
 
+            if (message.StartsWith("[s]") || message.StartsWith("[msg "))
+            {
+                Message skippedMessage = Message.SkippedMessage(message);
+                parsedMessages.Add(skippedMessage);
+                return (ErrorValues.None, 0);
+            }
+
             for (int i = 0; i < message.Length; i++)
             {
                 // Check bracket messages

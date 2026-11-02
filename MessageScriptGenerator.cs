@@ -52,6 +52,21 @@ namespace BloomScriptConverter
 
         public string GenerateMessage(in Message message,bool generateHeader,bool isFirstMessage)
         {
+            if (message.skip != SkipType.None)
+            {
+                string returnMessage = "";
+
+                if (!isFirstMessage)
+                {
+                    if (message.skip == SkipType.DoubleLine)
+                        returnMessage += "\n\n";
+                    else if (message.skip == SkipType.SingleLine)
+                        returnMessage += "\n";
+                }
+
+                return returnMessage + message.msg;
+            }
+
             string generatedMessage = "";
             string messageType = msgTypes[(int)message.type].value;
 

@@ -38,8 +38,16 @@ namespace BloomScriptConverter
         public int confidantID;
         public int confidantPoints;
     }
+
+    public enum SkipType
+    {
+        None,
+        DoubleLine,
+        SingleLine
+    }
     public class Message
     {
+        public SkipType skip = SkipType.None;
         public int? id;
         public int subID = 0;
         public MessageType type;
@@ -67,6 +75,23 @@ namespace BloomScriptConverter
             };
 
             return thisMessage;
+        }
+
+        public static Message SkippedMessage(string message)
+        {
+            SkipType skipType = SkipType.SingleLine;
+
+            if (message.StartsWith("[msg "))
+                skipType = SkipType.DoubleLine;
+
+            Message skippedMessage = new Message()
+            {
+                skip = skipType,
+                msg = message,
+                type = MessageType.MSG
+            };
+
+            return skippedMessage;
         }
 
         public static void HandleLongLines(ref string message,ref List<string> separateMessages)
