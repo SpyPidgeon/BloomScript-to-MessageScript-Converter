@@ -1,0 +1,7 @@
+{
+    "neutral": 500,
+    "smiling": 501,
+    "frowning": 502,
+    "sad": 503,
+    "surprised": 504
+}

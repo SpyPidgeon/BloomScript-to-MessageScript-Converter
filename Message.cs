@@ -160,7 +160,7 @@ namespace BloomScriptConverter
             for (int i = 0; i < values.Count; i++)
             {
                 var value = values[i];
-                if (value[0] != '\"') value = value.ToLower();
+                //if (value[0] != '\"') value = value.ToLower();
                 value = value.Trim();
 
                 if (value[0] == '"' && dialogue.Length <= 1)
@@ -169,7 +169,7 @@ namespace BloomScriptConverter
                     continue;
                 }
 
-                if (value == "phone")
+                if (value.ToLower() == "phone")
                 {
                     phone = true;
                     continue;
@@ -188,6 +188,7 @@ namespace BloomScriptConverter
                     {
                         int mIndex = Array.FindIndex(value.ToCharArray(), char.IsDigit);
                         int nextIndex = value.IndexOf(' ', mIndex);
+                        if (nextIndex == -1) nextIndex = value.IndexOf('.', mIndex);
 
                         if (nextIndex == -1)
                         {
@@ -228,7 +229,7 @@ namespace BloomScriptConverter
                     }
                     else
                     {
-                        int? idCheck = characterNode[value]?.GetValue<int>();
+                        int? idCheck = characterNode[value.ToLower()]?.GetValue<int>();
                         if (idCheck != null)
                         {
                             Console.WriteLine(idCheck);
@@ -242,7 +243,7 @@ namespace BloomScriptConverter
                             for (int j = 0; j < MessageScriptGenerator.msgTypes.Length; j++)
                             {
                                 var key = MessageScriptGenerator.msgTypes[j].key;
-                                if (value == key)
+                                if (value.ToLower() == key)
                                 {
                                     type = (MessageType)j;
                                     break;
@@ -255,7 +256,7 @@ namespace BloomScriptConverter
 
                         if (characterID != null)
                         {
-                            bustupString = value;
+                            bustupString = value.ToLower();
                             continue;
                         }
 
@@ -270,7 +271,7 @@ namespace BloomScriptConverter
 
             if (characterID != null)
             {
-                string path = $"{JsonDirectories.bustupDirectory}\\{nameplate}.json";
+                string path = $"{JsonDirectories.bustupDirectory}\\{nameplate.ToLower()}.json";
 
                 if (File.Exists(path))
                 {
@@ -328,7 +329,7 @@ namespace BloomScriptConverter
                     majorID = 0;
             }
 
-            if (nameplate != null) nameplate = CultureInfo.CurrentCulture.TextInfo.ToTitleCase(nameplate);
+            //if (nameplate != null) nameplate = CultureInfo.CurrentCulture.TextInfo.ToTitleCase(nameplate);
 
             newMessage = new Message()
             {

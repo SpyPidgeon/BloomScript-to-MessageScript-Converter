@@ -2,5 +2,7 @@
     "neutral": 0,
     "smiling": 1,
     "frowning": 2,
-    "sad": 3
+    "sad": 3,
+    "surprised": 4,
+    "hurt": 5
 }
